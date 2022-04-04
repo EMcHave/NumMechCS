@@ -19,14 +19,16 @@ namespace NumMechCS
         const double g = -9.81;
 
         public static Matrix<double> Dmatrix;
-        
-        public List<Node>? nodes { get; } 
-        public List<Element>? elements { get; }
+
+        public double thickness;
+        public List<Node>? nodes { get; private set; }
+        public List<Element>? elements { get; private set; }
         public FEMplane(string inputFileAdress, IMaterial material,
                         bool cf, bool sf, bool gf)
         {
+            this.thickness = 1;
             this.material = material;
-            readInputFile(inputFileAdress, material, cf, sf, gf);
+            readInputFile(inputFileAdress);
             StiffnessGlobal = Matrix<double>.Build.Sparse(2 * nodes.Count(), 2 * nodes.Count());
             ForcesVector = Vector<double>.Build.Sparse(2 * nodes.Count());
             Dmatrix = material.E/(1-Math.Pow(material.V,2))*Matrix<double>.Build.DenseOfArray(
@@ -39,7 +41,7 @@ namespace NumMechCS
             buildForcesVector(cf, sf, gf);
         }
 
-        private Vector<double> displacements { get; set; } 
+        public Vector<double> displacements { get; set; } 
         private Vector<double> strains { get; set; } 
         private Vector<double> stresses { get; set; } 
 
@@ -72,10 +74,79 @@ namespace NumMechCS
 
             
         }
-        private void readInputFile(string InputFileAdress, IMaterial material,
-                                    bool cf, bool sf, bool gf)
+        private void readInputFile(string InputFileAdress)
         {
+            nodes = new List<Node>();
+            elements = new List<Element>();
+            surfaceFoces = new List<SForce>();
+            concentratedForces = new List<CForce>();
+            constraints = new List<Constraint>();
+            using(StreamReader sr = new StreamReader(InputFileAdress))
+            {
+                string? line;
+                string[] numbers;
+                char[] separators = new char[2] { ' ', ',' };
+                line = sr.ReadLine();
 
+                while((line = sr.ReadLine()) != "*Element")
+                {
+                    numbers = line.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                    Node node = new Node()
+                    {
+                        id = int.Parse(numbers[0])-1,
+                        x = double.Parse(numbers[1], System.Globalization.CultureInfo.InvariantCulture),
+                        y = double.Parse(numbers[2], System.Globalization.CultureInfo.InvariantCulture),
+                    };
+                    nodes.Add(node);
+                }
+                while((line = sr.ReadLine()) != "*End")
+                {
+                    numbers = line.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                    elements.Add(new Element(nodes[int.Parse(numbers[1])-1],
+                        nodes[int.Parse(numbers[2])-1],
+                        nodes[int.Parse(numbers[3])-1],
+                        int.Parse(numbers[0])-1));
+                }
+            }
+
+
+            ///////////////////////////////////////////////////////
+            List<int> loadedNodesNumbers = new List<int>()
+            { 4, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 3};
+            List<int> constrainedNodesNumbers = new List<int>()
+            { 4, 23, 24, 5, 28, 27, 26, 25, 6 };
+            List<Node> loadedNodes = new List<Node>();
+
+            foreach (int N in loadedNodesNumbers)
+                loadedNodes.Add(nodes[N-1]);
+
+
+            surfaceFoces.Add(new SForce()
+            {
+                nodes = loadedNodes,
+                StartEndMultiplier = new double[2] { 1, 0 },
+                Fx = 100000,
+                Fy = 0
+            });
+            concentratedForces.Add(new CForce()
+            {
+                nodeId = 1,
+                Fx = 100000,
+                Fy = -30000,
+            });
+
+            foreach (int N in constrainedNodesNumbers)
+            {
+                constraints.Add(new Constraint()
+                {
+                    nodeId = N - 1,
+                    isXfixed = true,
+                    isYfixed = true,
+                });
+            }
+            /////////////////////////////////////////////////////
+
+            
         }
         private void buildStiffnessMatrix()
         {
@@ -103,35 +174,31 @@ namespace NumMechCS
             {
                 foreach (var load in surfaceFoces)
                 {
+                    
                     double x1 = 0;
-                    for (int i =0; i < nodes.Count; i++)
+                    double xl1, xl2, S;
+                    for (int i = 0; i < load.nodes.Count; i++)
                     {
+                        xl1 = x1;
                         if (i == 0)
                         {
-                            double xl1 = x1;
-                            double xl2 = x1 + load.faceLength(i)/2;
-                            double S = load.loadMultiplier * (xl1 + xl2) / 2*(load.faceLength(i)/2);
-                            surfForces[2 * i] += load.Fx * S;
-                            surfForces[2 * i + 1] += load.Fy * S;
+                            xl2 = x1 + load.faceLength(i)/2;
+                            S = (2*load.StartEndMultiplier[0]+ load.loadMultiplier * (xl1 + xl2)) / 2 * (load.faceLength(i)/2);
                             x1 = xl2;
                         }
-                        else if(i == nodes.Count - 1)
+                        else if(i == load.nodes.Count - 1)
                         {
-                            double xl1 = x1;
-                            double xl2 = x1 + load.faceLength(i-1)/2;
-                            double S = load.loadMultiplier * (xl1 + xl2) / 2 * (load.faceLength(i-1)/2);
-                            surfForces[2 * i] += load.Fx * S;
-                            surfForces[2 * i + 1] += load.Fy * S;
+                            xl2 = x1 + load.faceLength(i-1)/2;
+                            S = (2 * load.StartEndMultiplier[0] + load.loadMultiplier * (xl1 + xl2)) / 2 * (load.faceLength(i-1)/2);
                         }
                         else
                         {
-                            double xl1 = x1;
-                            double xl2 = x1 + (load.faceLength(i-1) + load.faceLength(i)) / 2;
-                            double S = load.loadMultiplier * (xl1 + xl2) / 2 * (load.faceLength(i) + load.faceLength(i-1))/2;
-                            surfForces[2 * i] += load.Fx * S;
-                            surfForces[2 * i + 1] += load.Fy * S;
+                            xl2 = x1 + (load.faceLength(i-1) + load.faceLength(i)) / 2;
+                            S = (2 * load.StartEndMultiplier[0] + load.loadMultiplier * (xl1 + xl2)) / 2 * (xl2 - xl1);
                             x1 = xl2;
                         }
+                        surfForces[2 * load.nodes[i].id] += load.Fx * thickness * S;
+                        surfForces[2 * load.nodes[i].id + 1] += load.Fy * thickness * S;
                     }
                 }   
             }
@@ -139,7 +206,7 @@ namespace NumMechCS
             {
                 foreach(var element in elements)
                 {
-                    var gVector = element.Jacobian() * material.ro * g / 6 * Vector<double>.Build.DenseOfArray(new double[6] { 0, 1, 0, 1, 0, 1 });
+                    var gVector = element.Jacobian().Determinant() * material.ro * g * thickness / 6 * Vector<double>.Build.DenseOfArray(new double[6] { 0, 1, 0, 1, 0, 1 });
                     gForces[2 * element.nodesIDs[0] + 1] += gVector[1];
                     gForces[2 * element.nodesIDs[1] + 1] += gVector[3];
                     gForces[2 * element.nodesIDs[2] + 1] += gVector[5];

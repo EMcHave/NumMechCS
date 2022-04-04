@@ -29,7 +29,7 @@ namespace NumMechCS
 
             Matrix<double> C = Matrix<double>.Build.DenseOfArray(new double[,]
             {
-                {-1, nodes[0].x, nodes[0].y},
+                {1, nodes[0].x, nodes[0].y},
                 {1, nodes[1].x, nodes[1].y},
                 {1, nodes[2].x, nodes[2].y }
             });
@@ -48,10 +48,10 @@ namespace NumMechCS
             for(int i = 0; i < 3; i++)
                 for(int j = 0; j < 3; j++)
                 {
-                    K_global[2 * nodesIDs[i] + 0, 2 * nodesIDs[i] + 0] += KLocal[2 * i + 0, 2 * j + 0];
-                    K_global[2 * nodesIDs[i] + 0, 2 * nodesIDs[i] + 1] += KLocal[2 * i + 0, 2 * j + 1];
-                    K_global[2 * nodesIDs[i] + 1, 2 * nodesIDs[i] + 0] += KLocal[2 * i + 1, 2 * j + 0];
-                    K_global[2 * nodesIDs[i] + 1, 2 * nodesIDs[i] + 1] += KLocal[2 * i + 1, 2 * j + 1];
+                    K_global[2 * nodesIDs[i] + 0, 2 * nodesIDs[j] + 0] += KLocal[2 * i + 0, 2 * j + 0];
+                    K_global[2 * nodesIDs[i] + 0, 2 * nodesIDs[j] + 1] += KLocal[2 * i + 0, 2 * j + 1];
+                    K_global[2 * nodesIDs[i] + 1, 2 * nodesIDs[j] + 0] += KLocal[2 * i + 1, 2 * j + 0];
+                    K_global[2 * nodesIDs[i] + 1, 2 * nodesIDs[j] + 1] += KLocal[2 * i + 1, 2 * j + 1];
                 }
         }
 

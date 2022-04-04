@@ -18,7 +18,6 @@ namespace NumMechCS
         public int nodeId; //номер закрепленного узла
         public bool isXfixed; //закреплено ли смещение по x
         public bool isYfixed; //по y
-        public bool isAngleFixed; //закреплен ли поворот
     }
 
     internal struct CForce //сосредоточенная сила и ее координаты
@@ -30,7 +29,7 @@ namespace NumMechCS
 
     internal struct SForce //распределенная нагрузка
     {
-        public List<Node> nodes; //массив узлов, к которым она приложена приложена
+        public List<Node> nodes;
         public double[] StartEndMultiplier;
         public float Fx;
         public float Fy;
@@ -38,8 +37,8 @@ namespace NumMechCS
         {
             get
             {
-                double l2 = Math.Pow(nodes[nodes.Count].x - nodes[0].x, 2) +
-                     Math.Pow(nodes[nodes.Count].y - nodes[0].y, 2);
+                double l2 = Math.Pow(nodes[nodes.Count-1].x - nodes[0].x, 2) +
+                     Math.Pow(nodes[nodes.Count-1].y - nodes[0].y, 2);
                 return Math.Sqrt(l2);
             }
         }
