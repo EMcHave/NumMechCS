@@ -10,12 +10,12 @@ namespace NumMechCS
     internal class FEMplane 
     {
         
-        private Matrix<double>? StiffnessGlobal;
-        private Vector<double>? ForcesVector;
+        protected Matrix<double>? StiffnessGlobal;
+        protected Vector<double>? ForcesVector;
         private List<Constraint>? constraints; 
-        private List<CForce> concentratedForces; 
-        private List<SForce> surfaceFoces;
-        private IMaterial material;
+        protected List<CForce> concentratedForces; 
+        protected List<SForce> surfaceForces;
+        protected IMaterial material;
         const double g = -9.81;
 
         public static Matrix<double> Dmatrix;
@@ -23,31 +23,32 @@ namespace NumMechCS
         public double thickness;
         public List<Node>? nodes { get; private set; }
         public List<Element>? elements { get; private set; }
-        public FEMplane(string inputFileAdress, IMaterial material,
-                        bool cf, bool sf, bool gf)
+        public FEMplane(string inputFileAdress, IMaterial material)
         {
             this.thickness = 1;
             this.material = material;
             readInputFile(inputFileAdress);
             StiffnessGlobal = Matrix<double>.Build.Sparse(2 * nodes.Count(), 2 * nodes.Count());
             ForcesVector = Vector<double>.Build.Sparse(2 * nodes.Count());
-            Dmatrix = material.E/(1-Math.Pow(material.V,2))*Matrix<double>.Build.DenseOfArray(
-                new double[,] 
-                { 
-                    { 1, material.V, 0},
-                    {material.V, 1, 0},
-                    {0,0, (1-material.V)/2 }
-                });
-            buildForcesVector(cf, sf, gf);
         }
 
         public Vector<double> displacements { get; set; } 
         private Vector<double> strains { get; set; } 
         private Vector<double> stresses { get; set; } 
 
-        public void Solve(bool calculateStrains, bool calculateStresses)
+        public void Solve(bool calculateStrains, bool calculateStresses,
+                          bool cf, bool sf, bool gf)
         {
+            Dmatrix = material.E / (1 - Math.Pow(material.V, 2)) * Matrix<double>.Build.DenseOfArray(
+                new double[,]
+                {
+                    { 1, material.V, 0},
+                    {material.V, 1, 0},
+                    {0,0, (1-material.V)/2 }
+                });
+
             buildStiffnessMatrix();
+            buildForcesVector(cf, sf, gf);
             applyConstraints();
 
             displacements = StiffnessGlobal.Solve(ForcesVector);
@@ -78,7 +79,7 @@ namespace NumMechCS
         {
             nodes = new List<Node>();
             elements = new List<Element>();
-            surfaceFoces = new List<SForce>();
+            surfaceForces = new List<SForce>();
             concentratedForces = new List<CForce>();
             constraints = new List<Constraint>();
             using(StreamReader sr = new StreamReader(InputFileAdress))
@@ -121,10 +122,10 @@ namespace NumMechCS
                 loadedNodes.Add(nodes[N-1]);
 
 
-            surfaceFoces.Add(new SForce()
+            surfaceForces.Add(new SForce()
             {
                 nodes = loadedNodes,
-                StartEndMultiplier = new double[2] { 1, 0 },
+                StartEndMultiplier = new double[2] { 1, 1 },
                 Fx = 100000,
                 Fy = 0
             });
@@ -156,7 +157,7 @@ namespace NumMechCS
             }
         }
 
-        private void buildForcesVector(bool cf, bool sf, bool gf)
+        protected void buildForcesVector(bool cf, bool sf, bool gf)
         {
             Vector<double> concForces = Vector<double>.Build.Sparse(2 * nodes.Count());
             Vector<double> surfForces = Vector<double>.Build.Sparse(2 * nodes.Count());
@@ -172,7 +173,7 @@ namespace NumMechCS
             }
             if(sf)
             {
-                foreach (var load in surfaceFoces)
+                foreach (var load in surfaceForces)
                 {
                     
                     double x1 = 0;

@@ -3,12 +3,13 @@ namespace NumMechCS
 {
     class Program
     {
-        static void Main()
+        static void Main(string[] args)
         {
-
-            var Solver = new FEMplane("DamJob.inp",new Concrete(), false, true, true);
-            Solver.Solve(false, false);
-            Console.Write(Solver.displacements);
+            FEMThermal heattask = new FEMThermal("heatdammesh.txt", "heatdamBC.txt",
+                new Concrete());
+            heattask.Solve();
+            heattask.writeVKT();
+            heattask.tempComparation();
         }
     }
 }

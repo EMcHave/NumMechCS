@@ -13,6 +13,8 @@ namespace NumMechCS
         private Matrix<double> K_local { get; set; } //локальная матрица жесткости
         public List<int> nodesIDs { get; } //массив номеров узлов (для сборки глобальной матрицы жест)
         public List<Node> nodes { get; } //массив узлов, принадлежащих элементу
+
+        public double lambda { get; set; }
         public double square 
         { get
             {
@@ -55,6 +57,26 @@ namespace NumMechCS
                 }
         }
 
+        public void CalculateThermalMatrix(ref Matrix<double> K_global)
+        {
+            Matrix<double> JI = Jacobian().Inverse();
+            Vector<double> v1, v2, v3;
+            v1 = JI * Vector<double>.Build.DenseOfArray(new double[2] { -1, -1 });
+            v2 = JI * Vector<double>.Build.DenseOfArray(new double[2] { 0, 1 });
+            v3 = JI * Vector<double>.Build.DenseOfArray(new double[2] { 1, 0 });
+            Matrix<double> B = Matrix<double>.Build.DenseOfColumnVectors(v1, v2, v3);
+            Matrix<double> KLocal = lambda * B.Transpose() * B * (Jacobian().Determinant()) / 2;
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j < 3; j++)
+                {
+                    K_global[nodesIDs[i] + 0,nodesIDs[j] + 0] += KLocal[i + 0, j + 0];
+                    //K_global[nodesIDs[i] + 0,nodesIDs[j] + 1] += KLocal[i + 0, j + 1];
+                    //K_global[nodesIDs[i] + 1, nodesIDs[j] + 0] += KLocal[i + 1, j + 0];
+                    //K_global[nodesIDs[i] + 1, nodesIDs[j] + 1] += KLocal[i + 1, j + 1];
+                }
+
+        }
+
         public Element(Node n1, Node n2, Node n3, int Id)
         {
             nodes = new List<Node> { n1, n2, n3 };
@@ -78,4 +100,5 @@ namespace NumMechCS
             return J1 * J2;
         }
     }
+
 }

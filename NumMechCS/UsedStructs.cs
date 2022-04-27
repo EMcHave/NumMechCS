@@ -23,16 +23,30 @@ namespace NumMechCS
     internal struct CForce //сосредоточенная сила и ее координаты
     {
         public int nodeId; // к какому узлу приложена
-        public float Fx;
-        public float Fy;
+        public double Fx;
+        public double Fy;
     }
 
     internal struct SForce //распределенная нагрузка
     {
         public List<Node> nodes;
         public double[] StartEndMultiplier;
-        public float Fx;
-        public float Fy;
+        public double pressure;
+        public double Fx;
+        public double Fy;
+        public SForce(ref List<int> surfaceForcesNodes,
+                      List<Node> nodes, double pressure,
+                      double Fx, double Fy,
+                      double[] StartEndMultiplier)
+        {
+            this.pressure = pressure;
+            this.nodes = new List<Node>();
+            foreach(int nodeNumber in surfaceForcesNodes)
+                this.nodes.Add(nodes[nodeNumber]);
+            this.Fx = Fx;
+            this.Fy = Fy;
+            this.StartEndMultiplier = StartEndMultiplier;
+        }
         public double loadLength
         {
             get
@@ -57,10 +71,17 @@ namespace NumMechCS
         }
     }
 
+    struct BCTemp
+    {
+        public List<int> nodes;
+        public double temp;
+    }
+
     interface IMaterial
     {
         double E { get; } //модуль Юнга
         double V { get; } //коэф пуассона
         double ro { get; } //плотность в кг/м^3
     }
+
 }
